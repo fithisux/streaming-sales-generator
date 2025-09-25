@@ -5,8 +5,10 @@
 version: "3.9"
 
 services:
-  spark:
-    image: "bitnami/spark:3.5.5"
+  spark-master:
+    image: "bitnami/spark:latest"
+    container_name: spark-master
+    hostname: spark-master
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -18,10 +20,12 @@ services:
     networks:
       - streaming-stack
   spark-worker:
-    image: "bitnami/spark:3.5.5"
+    image: "bitnami/spark:latest"
+    container_name: spark-worker
+    hostname: spark-worker
     environment:
       - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -30,8 +34,26 @@ services:
       - SPARK_SSL_ENABLED=no
     networks:
       - streaming-stack
-    kafka:
-    image: docker.io/bitnami/kafka:4.0
+  spark-connect:
+    image: apache/spark:latest
+    container_name: spark-connect
+    hostname: spark-connect
+    ports:
+      - "4040:4040"
+      - "15002:15002"
+    depends_on:
+      - spark-master
+    volumes:
+      - ./jars/spark-connect_2.13-4.0.1.jar:/opt/spark/jars/spark-connect_2.13-4.0.1.jar
+      - ./sc-work-dir:/opt/spark/work-dir:rw
+    command: 
+      - "bash"
+      - "-c"
+      - "/opt/spark/sbin/start-connect-server.sh --jars /opt/spark/jars/spark-connect_2.13-4.0.1.jar && tail -f /dev/null"
+    networks:
+      - streaming-stack
+  kafka:
+    image: docker.io/bitnami/kafka:latest
     ports:
       - "9092:9092"
     volumes:
@@ -56,18 +78,6 @@ services:
     environment:
       - KAFKA_CLUSTERS_0_NAME=streaming-demo
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
-    depends_on:
-      - kafka
-    networks:
-      - streaming-stack
-  ksqldb-server:
-    image: confluentinc/cp-ksqldb-server:7.9.0
-    ports:
-      - "8088:8088"
-    environment:
-      - KSQL_BOOTSTRAP_SERVERS=kafka:29092
-      - KSQL_LISTENERS=http://0.0.0.0:8088/
-      - KSQL_KSQL_SERVICE_ID=ksql_service_2_
     depends_on:
       - kafka
     networks:
