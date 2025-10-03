@@ -1,3 +1,6 @@
 [submodule "bytewax-kafka-article"]
 	path = bytewax-kafka-article
 	url = https://github.com/fithisux/bytewax-kafka-article
+[submodule "spark-kafka-article"]
+	path = spark-kafka-article
+	url = https://github.com/fithisux/spark-kafka-article
